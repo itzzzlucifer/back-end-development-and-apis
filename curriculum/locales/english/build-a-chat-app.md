@@ -103,13 +103,13 @@ A WebSocket client should be able to connect to the server.
 
 ```js
 await new Promise((resolve, reject) => {
-  const WebSocket = new WebSocket("ws://localhost:3001?username=Tester");
-  WebSocket.once("open", () => {
-    WebSocket.close();
+  const ws = new WebSocket("ws://localhost:3001?username=Tester");
+  ws.addEventListener("open", () => {
+    ws.close();
     resolve();
   });
-  WebSocket.once("error", (err) =>
-    reject(new Error(`WebSocket connection failed: ${err.message}`)),
+  ws.addEventListener("error", () =>
+    reject(new Error("WebSocket connection failed")),
   );
   setTimeout(() => reject(new Error("WebSocket connection timed out")), 3000);
 });
@@ -119,23 +119,25 @@ When a client connects, all existing clients should receive a `{ type: 'system' 
 
 ```js
 const __observer = new WebSocket("ws://localhost:3001?username=Observer");
-await new Promise((res) => __observer.once("open", res));
+await new Promise((res) =>
+  __observer.addEventListener("open", res, { once: true }),
+);
 
 const __joinMsg = await new Promise((resolve, reject) => {
   const __timer = setTimeout(
     () => reject(new Error("Timed out waiting for join message")),
     3000,
   );
-  __observer.on("message", function __handler(data) {
-    const __msg = JSON.parse(data.toString());
+  __observer.addEventListener("message", function __handler(event) {
+    const __msg = JSON.parse(event.data);
     if (__msg.type === "system" && __msg.text.includes("Alice")) {
       clearTimeout(__timer);
-      __observer.off("message", __handler);
+      __observer.removeEventListener("message", __handler);
       resolve(__msg);
     }
   });
   const __alice = new WebSocket("ws://localhost:3001?username=Alice");
-  __alice.once("open", () => __alice.close());
+  __alice.addEventListener("open", () => __alice.close(), { once: true });
 });
 
 __observer.close();
@@ -157,8 +159,8 @@ When a client sends a message, all connected clients - including the sender - sh
 const __alice = new WebSocket("ws://localhost:3001?username=Alice");
 const __bob = new WebSocket("ws://localhost:3001?username=Bob");
 await Promise.all([
-  new Promise((res) => __alice.once("open", res)),
-  new Promise((res) => __bob.once("open", res)),
+  new Promise((res) => __alice.addEventListener("open", res, { once: true })),
+  new Promise((res) => __bob.addEventListener("open", res, { once: true })),
 ]);
 
 function __waitForChat(ws, senderName) {
@@ -167,11 +169,11 @@ function __waitForChat(ws, senderName) {
       () => reject(new Error(`Timed out waiting for chat from ${senderName}`)),
       3000,
     );
-    ws.on("message", function __h(data) {
-      const __m = JSON.parse(data.toString());
+    ws.addEventListener("message", function __h(event) {
+      const __m = JSON.parse(event.data);
       if (__m.type === "chat" && __m.username === senderName) {
         clearTimeout(__timer);
-        ws.off("message", __h);
+        ws.removeEventListener("message", __h);
         resolve(__m);
       }
     });
@@ -219,8 +221,8 @@ When a client disconnects, remaining clients should receive a `{ type: 'system' 
 const __alice = new WebSocket("ws://localhost:3001?username=Alice");
 const __bob = new WebSocket("ws://localhost:3001?username=Bob");
 await Promise.all([
-  new Promise((res) => __alice.once("open", res)),
-  new Promise((res) => __bob.once("open", res)),
+  new Promise((res) => __alice.addEventListener("open", res, { once: true })),
+  new Promise((res) => __bob.addEventListener("open", res, { once: true })),
 ]);
 
 const __leaveMsg = await new Promise((resolve, reject) => {
@@ -228,11 +230,11 @@ const __leaveMsg = await new Promise((resolve, reject) => {
     () => reject(new Error("Timed out waiting for leave message")),
     3000,
   );
-  __bob.on("message", function __handler(data) {
-    const __msg = JSON.parse(data.toString());
+  __bob.addEventListener("message", function __handler(event) {
+    const __msg = JSON.parse(event.data);
     if (__msg.type === "system" && __msg.text.includes("Alice")) {
       clearTimeout(__timer);
-      __bob.off("message", __handler);
+      __bob.removeEventListener("message", __handler);
       resolve(__msg);
     }
   });
